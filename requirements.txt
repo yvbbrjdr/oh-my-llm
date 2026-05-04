@@ -1,0 +1,3 @@
+json_repair==0.44.1
+openai==2.33.0
+requests==2.32.5
