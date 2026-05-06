@@ -39,6 +39,7 @@ class OmlOpenAIConfig:
 class OmlConfig:
     debug: bool = False
     execute_failed_command: bool = True
+    skip_readonly_command_verification: bool = False
     openai: OmlOpenAIConfig = field(default_factory=OmlOpenAIConfig)
 
     @staticmethod
@@ -102,6 +103,51 @@ def is_shell_command(message: str, client: OpenAI, model: str) -> bool:
         return False
 
 
+def is_shell_command_readonly(message: str, client: OpenAI, model: str) -> bool:
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant that determines whether a shell command is readonly or it modifies the system or has side effects.",
+                },
+                {
+                    "role": "user",
+                    "content": message,
+                },
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "is_command_readonly_response",
+                    "description": "Determines whether the input is a readonly shell command. Return true if it is a readonly command, false otherwise.",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "is_command_readonly": {
+                                "type": "boolean",
+                                "description": "Whether the input is a readonly shell command. Return true if it is a readonly command, false otherwise.",
+                            }
+                        },
+                        "required": ["is_command_readonly"],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                },
+            },
+        )
+        assert isinstance(response.choices[0].message.content, str)
+        result: Any = json_repair.loads(response.choices[0].message.content)
+        return result.get("is_command_readonly", False)
+    except Exception as e:
+        print(
+            f"Error determining if message is readonly shell command: {e}",
+            file=sys.stderr,
+        )
+        return False
+
+
 def getcwd():
     while True:
         try:
@@ -127,7 +173,9 @@ class Tool:
 
 
 class ShellTool(Tool):
-    def __init__(self):
+    def __init__(
+        self, client: OpenAI, model: str, skip_readonly_command_verification: bool
+    ):
         super().__init__(
             "Execute a shell command on the host and return its stdout and stderr. If you need to execute Python code for some task, use this tool.",
             {
@@ -142,19 +190,28 @@ class ShellTool(Tool):
                 "additionalProperties": False,
             },
         )
+        self._client = client
+        self._model = model
+        self._skip_readonly_command_verification = skip_readonly_command_verification
 
     def execute(self, args: dict[str, Any]) -> dict[str, Any]:
         command = args["command"]
-        try:
-            user_input = input(f"Allow execution of command: {command}? [Y/n] ")
-        except EOFError:
-            print()
-            user_input = "n"
-        except KeyboardInterrupt:
-            print()
-            user_input = "n"
-        if user_input.strip().lower() not in ("y", "yes", ""):
-            return {"error": "Command execution cancelled by user."}
+        if not (
+            self._skip_readonly_command_verification
+            and is_shell_command_readonly(command, self._client, self._model)
+        ):
+            try:
+                user_input = input(f"Allow execution of command: {command}? [Y/n] ")
+            except EOFError:
+                print()
+                user_input = "n"
+            except KeyboardInterrupt:
+                print()
+                user_input = "n"
+            if user_input.strip().lower() not in ("y", "yes", ""):
+                return {"error": "Command execution cancelled by user."}
+        else:
+            print(f"\033[90mExecuting command: {command}\033[0m")
 
         p = subprocess.Popen(
             command,
@@ -230,7 +287,11 @@ def execute_handler(args: argparse.Namespace):
         messages = json.load(f)
     messages.append({"role": "user", "content": args.query})
 
-    tools = {"shell": ShellTool()}
+    tools = {
+        "shell": ShellTool(
+            client, config.openai.small_model, config.skip_readonly_command_verification
+        )
+    }
 
     while True:
         try:
