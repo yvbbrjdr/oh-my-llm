@@ -51,7 +51,7 @@ oml_init() {
 }
 
 oml_clear() {
-    OML_MESSAGES_FILE="$(mktemp -p "$OML_DIR/messages" "oml_messages_$(date +%s)_XXXXXX")"
+    OML_MESSAGES_FILE="$(mktemp -p "$OML_DIR/messages" "oml_messages_$(date +%Y%m%d%H%M%S)_XXXXXX")"
     mv "$OML_MESSAGES_FILE" "$OML_MESSAGES_FILE.json"
     OML_MESSAGES_FILE="$OML_MESSAGES_FILE.json"
     echo "[]" > "$OML_MESSAGES_FILE"
