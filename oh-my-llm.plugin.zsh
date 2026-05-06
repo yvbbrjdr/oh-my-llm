@@ -1,6 +1,4 @@
 OML_DIR="${0:A:h}"
-OML_VENV_DIR="$OML_DIR/venv"
-OML_TEMP_DIR="$OML_DIR/temp"
 
 oml_init() {
     if command -v /opt/homebrew/bin/python3 &> /dev/null; then
@@ -24,6 +22,7 @@ oml_init() {
         return 1
     fi
 
+    local OML_VENV_DIR="$OML_DIR/venv"
     if [ ! -d "$OML_VENV_DIR" ]; then
         echo "Creating virtual environment for oh-my-llm..."
         if ! "$OML_PYTHON" -m venv "$OML_VENV_DIR"; then
@@ -42,18 +41,24 @@ oml_init() {
         fi
     fi
 
-    OML_MESSAGES="[]"
-
     alias oml="$OML_PYTHON $OML_DIR/oml.py"
-    alias oml-clear="OML_MESSAGES='[]'"
+
+    if [ ! -f "$OML_DIR/config.json" ]; then
+        echo "Oh-my-llm is not configured. Please run 'oml config' to set it up." >&2
+    fi
+
+    oml_clear
+}
+
+oml_clear() {
+    OML_MESSAGES_FILE="$(mktemp -p "$OML_DIR/messages" "oml_messages_$(date +%s)_XXXXXX")"
+    mv "$OML_MESSAGES_FILE" "$OML_MESSAGES_FILE.json"
+    OML_MESSAGES_FILE="$OML_MESSAGES_FILE.json"
+    echo "[]" > "$OML_MESSAGES_FILE"
 }
 
 if oml_init; then
     command_not_found_handler() {
-        local NEXT_MESSAGES="$(mktemp -p "$OML_TEMP_DIR" "next_messages_XXXXXX")"
-        if "$OML_PYTHON" "$OML_DIR/oml.py" execute "$*" "$OML_MESSAGES" "$NEXT_MESSAGES"; then
-            OML_MESSAGES="$(cat "$NEXT_MESSAGES")"
-        fi
-        rm -f "$NEXT_MESSAGES"
+        "$OML_PYTHON" "$OML_DIR/oml.py" execute "$*" "$OML_MESSAGES_FILE"
     }
 fi
