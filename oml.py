@@ -11,6 +11,7 @@ from functools import lru_cache
 from typing import IO, Any, cast
 
 import json_repair
+from exa_py import Exa
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -36,11 +37,17 @@ class OmlOpenAIConfig:
 
 
 @dataclass(kw_only=True)
+class OmlExaConfig:
+    api_key: str = "your-exa-api-key"
+
+
+@dataclass(kw_only=True)
 class OmlConfig:
     debug: bool = False
     execute_failed_command: bool = True
     skip_readonly_command_verification: bool = False
     openai: OmlOpenAIConfig = field(default_factory=OmlOpenAIConfig)
+    exa: OmlExaConfig = field(default_factory=OmlExaConfig)
 
     @staticmethod
     @lru_cache(maxsize=1)
@@ -258,6 +265,61 @@ class ShellTool(Tool):
         return outputs
 
 
+class SearchTool(Tool):
+    def __init__(self, api_key: str):
+        super().__init__(
+            "Search the web and return relevant results with titles, URLs, and content snippets.",
+            {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query.",
+                    },
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        )
+        self._client = Exa(api_key)
+
+    def execute(self, args: dict[str, Any]) -> dict[str, Any]:
+        query = args["query"]
+        print(f"\033[90mSearching for: {query}\033[0m")
+        return {
+            "results": [
+                asdict(result)
+                for result in self._client.search(
+                    query, contents={"highlights": True}
+                ).results
+            ]
+        }
+
+
+class FetchTool(Tool):
+    def __init__(self, api_key: str):
+        super().__init__(
+            "Fetch the content of a web page given its URL. Use this tool when you need to access information from a specific web page.",
+            {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL of the web page to fetch.",
+                    }
+                },
+                "required": ["url"],
+                "additionalProperties": False,
+            },
+        )
+        self._client = Exa(api_key)
+
+    def execute(self, args: dict[str, Any]) -> dict[str, Any]:
+        url = args["url"]
+        print(f"\033[90mFetching URL: {url}\033[0m")
+        return asdict(self._client.get_contents(url, text=True).results[0])
+
+
 def config_handler(args: argparse.Namespace):
     OmlConfig.load().save()
     editor = os.getenv("EDITOR", "vi")
@@ -287,10 +349,18 @@ def execute_handler(args: argparse.Namespace):
         messages = json.load(f)
     messages.append({"role": "user", "content": args.query})
 
-    tools = {
+    tools: dict[str, Tool] = {
         "shell": ShellTool(
             client, config.openai.small_model, config.skip_readonly_command_verification
-        )
+        ),
+        **(
+            {
+                "search": SearchTool(config.exa.api_key),
+                "fetch": FetchTool(config.exa.api_key),
+            }
+            if config.exa.api_key != OmlExaConfig().api_key
+            else {}
+        ),
     }
 
     while True:
