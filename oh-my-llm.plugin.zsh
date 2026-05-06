@@ -77,4 +77,12 @@ if oml_init; then
 
     add-zsh-hook preexec oml_preexec_hook
     add-zsh-hook precmd oml_precmd_hook
+
+    what() {
+        return 127
+    }
+
+    who() {
+        return 127
+    }
 fi
