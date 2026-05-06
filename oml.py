@@ -161,6 +161,7 @@ def config_handler(args: argparse.Namespace):
     OmlConfig.load().save()
     editor = os.getenv("EDITOR", "vi")
     subprocess.run([editor, OmlConfig.get_config_filename()])
+    OmlConfig.load().save()
 
 
 def execute_handler(args: argparse.Namespace):
