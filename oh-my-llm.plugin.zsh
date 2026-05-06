@@ -61,4 +61,20 @@ if oml_init; then
     command_not_found_handler() {
         "$OML_PYTHON" "$OML_DIR/oml.py" execute "$*" "$OML_MESSAGES_FILE"
     }
+
+    autoload -Uz add-zsh-hook
+
+    oml_preexec_hook() {
+        OML_PREV_COMMAND="$1"
+    }
+
+    oml_precmd_hook() {
+        if [ $? -ne 0 ] && [ $? -ne 130 ] && [ -n "$OML_PREV_COMMAND" ]; then
+            "$OML_PYTHON" "$OML_DIR/oml.py" execute --failed-command "$OML_PREV_COMMAND" "$OML_MESSAGES_FILE"
+        fi
+        OML_PREV_COMMAND=""
+    }
+
+    add-zsh-hook preexec oml_preexec_hook
+    add-zsh-hook precmd oml_precmd_hook
 fi

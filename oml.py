@@ -32,11 +32,13 @@ class OmlOpenAIConfig:
     api_key: str = "your-openai-api-key"
     api_base: str = "https://api.openai.com/v1"
     model: str = "gpt-5.4"
+    small_model: str = "gpt-5.4-mini"
 
 
 @dataclass(kw_only=True)
 class OmlConfig:
     debug: bool = False
+    execute_failed_command: bool = True
     openai: OmlOpenAIConfig = field(default_factory=OmlOpenAIConfig)
 
     @staticmethod
@@ -56,6 +58,48 @@ class OmlConfig:
     def save(self):
         with open(self.get_config_filename(), "w") as f:
             json.dump(asdict(self), f, indent=4)
+
+
+def is_shell_command(message: str, client: OpenAI, model: str) -> bool:
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant that determines whether a string is a shell command or not, like a request or a sentence. The user input given to you is a string that has failed to execute as a shell command. Your task is to determine whether the user input is intended to be a shell command or not. Return true if it is a shell command, false otherwise.",
+                },
+                {
+                    "role": "user",
+                    "content": message,
+                },
+            ],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "is_command_response",
+                    "description": "Determines whether the input is a shell command. Return true if it is a command, false otherwise.",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "is_command": {
+                                "type": "boolean",
+                                "description": "Whether the input is a shell command. Return true if it is a command, false otherwise.",
+                            }
+                        },
+                        "required": ["is_command"],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                },
+            },
+        )
+        assert isinstance(response.choices[0].message.content, str)
+        result: Any = json_repair.loads(response.choices[0].message.content)
+        return result.get("is_command", False)
+    except Exception as e:
+        print(f"Error determining if message is shell command: {e}", file=sys.stderr)
+        return False
 
 
 def getcwd():
@@ -171,14 +215,20 @@ def execute_handler(args: argparse.Namespace):
 
     config = OmlConfig.load()
 
-    with open(args.messages_file, "r") as f:
-        messages = json.load(f)
-    messages.append({"role": "user", "content": args.query})
-
     client = OpenAI(
         base_url=config.openai.api_base,
         api_key=config.openai.api_key,
     )
+
+    if args.failed_command and (
+        not config.execute_failed_command
+        or is_shell_command(args.query, client, config.openai.small_model)
+    ):
+        return
+
+    with open(args.messages_file, "r") as f:
+        messages = json.load(f)
+    messages.append({"role": "user", "content": args.query})
 
     tools = {"shell": ShellTool()}
 
@@ -335,6 +385,11 @@ if __name__ == "__main__":
     execute_parser.add_argument(
         "messages_file",
         help="The file path containing the current conversation messages in JSON format",
+    )
+    execute_parser.add_argument(
+        "--failed-command",
+        action="store_true",
+        help="Execute the failed command with AI",
     )
     execute_parser.set_defaults(func=execute_handler)
 
