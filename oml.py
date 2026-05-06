@@ -2,24 +2,60 @@ import argparse
 import datetime
 import json
 import os
-import shutil
 import signal
 import subprocess
 import sys
 import threading
+from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from functools import lru_cache
-from typing import IO, Any
+from typing import IO, Any, cast
 
 import json_repair
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
 
-@lru_cache
-def get_config_filename(suffix: str = "") -> str:
-    return os.path.join(
-        os.path.dirname(os.path.realpath(__file__)), f"config{suffix}.json"
-    )
+def config_from_dict(cls: Any, data: dict[str, Any]) -> Any:
+    kwargs = {}
+    for f in fields(cls):
+        if f.name in data:
+            value = data[f.name]
+            if is_dataclass(f.type) and isinstance(value, dict):
+                kwargs[f.name] = config_from_dict(f.type, cast(dict[str, Any], value))
+            else:
+                kwargs[f.name] = value
+    return cls(**kwargs)
+
+
+@dataclass(kw_only=True)
+class OmlOpenAIConfig:
+    api_key: str = "your-openai-api-key"
+    api_base: str = "https://api.openai.com/v1"
+    model: str = "gpt-5.4"
+
+
+@dataclass(kw_only=True)
+class OmlConfig:
+    debug: bool = False
+    openai: OmlOpenAIConfig = field(default_factory=OmlOpenAIConfig)
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def get_config_filename() -> str:
+        return os.path.join(os.path.dirname(os.path.realpath(__file__)), "config.json")
+
+    @staticmethod
+    def load() -> "OmlConfig":
+        try:
+            with open(OmlConfig.get_config_filename(), "r") as f:
+                data: Any = json_repair.load(f)
+            return config_from_dict(OmlConfig, data)
+        except:
+            return OmlConfig()
+
+    def save(self):
+        with open(self.get_config_filename(), "w") as f:
+            json.dump(asdict(self), f, indent=4)
 
 
 def getcwd():
@@ -122,30 +158,25 @@ class ShellTool(Tool):
 
 
 def config_handler(args: argparse.Namespace):
-    if not os.path.exists(get_config_filename()):
-        shutil.copy2(get_config_filename("-example"), get_config_filename())
-        os.chmod(get_config_filename(), 0o600)
+    OmlConfig.load().save()
     editor = os.getenv("EDITOR", "vi")
-    subprocess.run([editor, get_config_filename()])
-    print(f"Config is at {get_config_filename()}")
-    print(f"Example config is at {get_config_filename('-example')}")
+    subprocess.run([editor, OmlConfig.get_config_filename()])
 
 
 def execute_handler(args: argparse.Namespace):
-    if not os.path.exists(get_config_filename()):
+    if not os.path.exists(OmlConfig.get_config_filename()):
         print("Oh-my-llm is not configured. Please run 'oml config' to set it up.")
         return
 
-    with open(get_config_filename(), "r") as f:
-        config = json.load(f)
+    config = OmlConfig.load()
 
     with open(args.messages_file, "r") as f:
         messages = json.load(f)
     messages.append({"role": "user", "content": args.query})
 
     client = OpenAI(
-        base_url=config["openai"]["api_base"],
-        api_key=config["openai"]["api_key"],
+        base_url=config.openai.api_base,
+        api_key=config.openai.api_key,
     )
 
     tools = {"shell": ShellTool()}
@@ -153,7 +184,7 @@ def execute_handler(args: argparse.Namespace):
     while True:
         try:
             response = client.chat.completions.create(
-                model=config["openai"]["model"],
+                model=config.openai.model,
                 messages=[system_message(), *messages],
                 tools=[
                     {
@@ -180,7 +211,7 @@ def execute_handler(args: argparse.Namespace):
             for chunk in response:
                 delta = chunk.choices[0].delta
 
-                if config.get("debug"):
+                if config.debug:
                     print(f"\n[DEBUG] Delta: {delta}\n")
 
                 tool_calls = delta.tool_calls
