@@ -95,4 +95,8 @@ if oml_init; then
     who() {
         return 127
     }
+
+    where() {
+        return 127
+    }
 fi
