@@ -8,6 +8,7 @@ oh-my-llm is a zsh plugin that brings a large language model directly into your 
 
 - **Natural language commands**: type a question or instruction at the prompt and the AI responds or runs the right command for you
 - **Tool use**: the AI can execute shell commands (with your approval), search the web, and fetch web pages
+- **Skills**: extend the AI with reusable, project- or machine-scoped capabilities loaded from local `SKILL.md` files
 - **Configurable backend**: works with OpenAI or any OpenAI-compatible API endpoint
 
 ## Requirements
@@ -89,11 +90,32 @@ $ who owns the process on port 8080?
 
 ### Session management
 
-Conversation context persists for your entire shell session. To clear the history and start a new conversation:
+Conversation context persists for your entire shell session.
+
+To clear the history and start fresh:
 
 ```zsh
-oml_clear
+oml clear
 ```
+
+To upgrade oh-my-llm to the latest version:
+
+```zsh
+oml upgrade
+```
+
+This pulls the latest changes from git and reloads your shell.
+
+## Skills
+
+Skills extend oh-my-llm with reusable, task-specific instructions the AI reads before tackling certain problems. A skill is a `SKILL.md` file with a YAML frontmatter header followed by freeform guidance. See [agentskills.io](https://agentskills.io/home) for details.
+
+### Skill discovery
+
+oh-my-llm automatically discovers skills from two locations:
+
+- **Project skills**: any `skills/*/SKILL.md` path found inside a hidden directory (e.g. `.oml/skills/`) under your current working directory, useful for per-project capabilities committed alongside your code.
+- **Global skills**: `skills/*/SKILL.md` files inside the oh-my-llm plugin directory itself, available in every session regardless of where you are.
 
 ## Security
 
