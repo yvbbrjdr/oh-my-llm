@@ -12,6 +12,7 @@ import sys
 import threading
 from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from functools import lru_cache
+from glob import glob
 from typing import IO, Any, cast
 
 import json_repair
@@ -167,10 +168,43 @@ def getcwd():
             os.chdir("..")
 
 
+def load_skills() -> list[dict[str, str]]:
+    skills_files = glob(os.path.join(os.getcwd(), ".*/skills/*/SKILL.md")) + glob(
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), "skills/*/SKILL.md")
+    )
+    skills: list[dict[str, str]] = []
+    for skills_file in skills_files:
+        with open(skills_file, "r") as f:
+            content = f.read()
+        if not content.startswith("---"):
+            continue
+        _, frontmatter, _ = content.split("---", 2)
+        header: dict[str, str] = {}
+        for line in frontmatter.strip().splitlines():
+            if ": " in line:
+                key, value = line.split(": ", 1)
+                header[key.strip()] = value.strip().strip('"')
+        header["path"] = skills_file
+        skills.append(header)
+    return skills
+
+
 def system_message() -> ChatCompletionMessageParam:
+    skills = load_skills()
+    skills_list = "\n".join(
+        [
+            f"- {skill['name']}: {skill['description']} (from {skill['path']})"
+            for skill in skills
+        ]
+    )
+    skills_text = (
+        f" You have access to the following skills:\n{skills_list}\nYou must read the SKILL.md file first if you want to use a skill."
+        if skills
+        else " You have no skills available."
+    )
     return {
         "role": "system",
-        "content": f"You are oh-my-llm, an AI-infused zsh environment. Today's date is {datetime.datetime.now().strftime('%Y-%m-%d')}. Current working directory is {getcwd()}. The operating system is {str(os.uname())}.",
+        "content": f"You are oh-my-llm, an AI-infused zsh environment. Today's date is {datetime.datetime.now().strftime('%Y-%m-%d')}. Current working directory is {getcwd()}. The operating system is {str(os.uname())}.{skills_text}",
     }
 
 
