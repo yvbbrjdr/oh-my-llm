@@ -1,3 +1,7 @@
+import warnings
+
+warnings.filterwarnings("ignore", message="urllib3 v2 only supports OpenSSL")
+
 import argparse
 import datetime
 import json
@@ -28,7 +32,7 @@ def config_from_dict(cls: Any, data: dict[str, Any]) -> Any:
     return cls(**kwargs)
 
 
-@dataclass(kw_only=True)
+@dataclass
 class OmlOpenAIConfig:
     api_key: str = "your-openai-api-key"
     api_base: str = "https://api.openai.com/v1"
@@ -36,12 +40,12 @@ class OmlOpenAIConfig:
     small_model: str = "gpt-5.4-mini"
 
 
-@dataclass(kw_only=True)
+@dataclass
 class OmlExaConfig:
     api_key: str = "your-exa-api-key"
 
 
-@dataclass(kw_only=True)
+@dataclass
 class OmlConfig:
     debug: bool = False
     execute_failed_command: bool = True
