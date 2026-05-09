@@ -358,6 +358,10 @@ class FetchTool(Tool):
         return asdict(self._client.get_contents(url, text=True).results[0])
 
 
+def clear_handler(args: argparse.Namespace):
+    raise NotImplementedError("Clear is implemented in the shell script")
+
+
 def config_handler(args: argparse.Namespace):
     OmlConfig.load().save()
     editor = os.getenv("EDITOR", "vi")
@@ -545,6 +549,9 @@ def execute_handler(args: argparse.Namespace):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Infuse your zsh with AI")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    clear_parser = subparsers.add_parser("clear", help="Clear the conversation history")
+    clear_parser.set_defaults(func=clear_handler)
 
     config_parser = subparsers.add_parser("config", help="Configure oh-my-llm")
     config_parser.set_defaults(func=config_handler)

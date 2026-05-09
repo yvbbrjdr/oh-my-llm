@@ -41,8 +41,6 @@ oml_init() {
         fi
     fi
 
-    alias oml="$OML_PYTHON $OML_DIR/oml.py"
-
     if [ ! -f "$OML_DIR/config.json" ]; then
         echo "Oh-my-llm is not configured. Please run 'oml config' to set it up." >&2
     fi
@@ -58,6 +56,14 @@ oml_clear() {
 }
 
 if oml_init; then
+    oml() {
+        if [ "$1" = "clear" ]; then
+            oml_clear
+            return
+        fi
+        "$OML_PYTHON" "$OML_DIR/oml.py" "$@"
+    }
+
     command_not_found_handler() {
         "$OML_PYTHON" "$OML_DIR/oml.py" execute "$*" "$OML_MESSAGES_FILE"
     }
