@@ -12,12 +12,14 @@ oh-my-llm is a zsh plugin that brings a large language model directly into your 
 
 ## Requirements
 
-- zsh with [oh-my-zsh](https://ohmyz.sh/)
+- zsh
 - Python 3.8+ with `venv` and `pip`
 - An [OpenAI API key](https://platform.openai.com/api-keys) (or a compatible provider)
 - _(Optional)_ An [Exa API key](https://exa.ai/) for web search and page fetching
 
 ## Installation
+
+### With oh-my-zsh
 
 **1. Clone the repository into your oh-my-zsh custom plugins directory:**
 
@@ -35,6 +37,26 @@ plugins=(... oh-my-llm)
 
 ```zsh
 omz reload
+```
+
+### Without oh-my-zsh
+
+**1. Clone the repository anywhere you like:**
+
+```zsh
+git clone https://github.com/yvbbrjdr/oh-my-llm ~/.oh-my-llm
+```
+
+**2. Source the plugin from your `~/.zshrc`:**
+
+```zsh
+source ~/.oh-my-llm/oh-my-llm.plugin.zsh
+```
+
+**3. Reload your shell:**
+
+```zsh
+source ~/.zshrc
 ```
 
 The plugin will automatically create a virtual environment and install its dependencies on first load.
