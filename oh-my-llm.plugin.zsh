@@ -61,6 +61,10 @@ if oml_init; then
             oml_clear
             return
         fi
+        if [ "$1" = "upgrade" ]; then
+            cd "$OML_DIR" && git pull && source ~/.zshrc
+            return
+        fi
         "$OML_PYTHON" "$OML_DIR/oml.py" "$@"
     }
 

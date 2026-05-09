@@ -546,6 +546,10 @@ def execute_handler(args: argparse.Namespace):
         json.dump(messages, f)
 
 
+def upgrade_handler(args: argparse.Namespace):
+    raise NotImplementedError("Upgrade is implemented in the shell script")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Infuse your zsh with AI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -568,6 +572,11 @@ if __name__ == "__main__":
         help="Execute the failed command with AI",
     )
     execute_parser.set_defaults(func=execute_handler)
+
+    upgrade_parser = subparsers.add_parser(
+        "upgrade", help="Upgrade oh-my-llm to the latest version"
+    )
+    upgrade_parser.set_defaults(func=upgrade_handler)
 
     args = parser.parse_args()
     args.func(args)
