@@ -79,6 +79,10 @@ Just type what you want. If it isn't a valid shell command, oh-my-llm handles it
 $ what is my public IP address?
 $ find all PDFs modified in the last week
 $ summarize the contents of README.md
+$ convert photo.heic to JPEG
+$ convert all PNGs in this folder to WebP
+$ compress video.mov to an MP4 under 50MB
+$ extract the audio from recording.mp4 as an MP3
 $ what does the -r flag do in rsync?
 $ who owns the process on port 8080?
 ```
