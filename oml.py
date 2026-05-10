@@ -433,6 +433,9 @@ def execute_handler(args: argparse.Namespace):
         has_output = False
         try:
             for chunk in response:
+                if not chunk.choices:
+                    continue
+
                 delta = chunk.choices[0].delta
 
                 if config.debug:
