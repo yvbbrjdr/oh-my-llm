@@ -484,16 +484,16 @@ def execute_handler(args: argparse.Namespace):
                         reasoning_mode = True
                     print(f"\033[90m{reasoning_content}\033[0m", end="", flush=True)
                     has_output = True
-                    if hasattr(delta, "reasoning_content") and isinstance(
-                        getattr(delta, "reasoning_content"), str
-                    ):
-                        assistant_reasoning_content: str = assistant_message.get(
-                            "reasoning_content", ""
-                        )
-                        assistant_message["reasoning_content"] = (
-                            assistant_reasoning_content
-                            + getattr(delta, "reasoning_content")
-                        )
+                    if hasattr(delta, "reasoning_content"):
+                        reasoning_key = "reasoning_content"
+                    else:
+                        reasoning_key = "reasoning"
+                    assistant_reasoning_content: str = assistant_message.get(
+                        reasoning_key, ""
+                    )
+                    assistant_message[reasoning_key] = (
+                        assistant_reasoning_content + reasoning_content
+                    )
 
                 content = delta.content
                 if content:
