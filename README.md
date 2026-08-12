@@ -1,3 +1,5 @@
+
+
 # oh-my-llm
 
 Infuse your zsh with AI
@@ -68,7 +70,7 @@ The plugin will automatically create a virtual environment and install its depen
 oml config
 ```
 
-This opens a JSON config file in your `$EDITOR`. Fill in your credentials.
+This opens `config.json` (located in the plugin directory) in your `$EDITOR`. Fill in your credentials.
 
 ## Usage
 
